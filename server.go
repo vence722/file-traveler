@@ -57,22 +57,37 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	buf := make([]byte, 1024)
-	for {
-		n, err := conn.Read(buf)
-		if err != nil && err != io.EOF {
-			fmt.Println("Read file error, error:", err.Error())
-			return
+	progChan := make(chan int)
+	maxProg := ProgressBarLength
+
+	go func() {
+		buf := make([]byte, BufferSize)
+		currBytes := 0
+		lastProgress := 0
+		for {
+			n, err := conn.Read(buf)
+			if err != nil && err != io.EOF {
+				fmt.Println("Read file error, error:", err.Error())
+				return
+			}
+			currBytes += n
+			newProgress := int(float64(currBytes) / float64(header.FileLength) * float64(maxProg))
+			if newProgress-lastProgress >= 1 {
+				progChan <- newProgress
+			}
+			if n == 0 {
+				close(progChan)
+				break
+			}
+			_, err = targetFile.Write(buf[:n])
+			if err != nil && err != io.EOF {
+				fmt.Println("Write file error, error:", err.Error())
+				return
+			}
 		}
-		if n == 0 {
-			break
-		}
-		_, err = targetFile.Write(buf[:n])
-		if err != nil && err != io.EOF {
-			fmt.Println("Write file error, error:", err.Error())
-			return
-		}
-	}
+	}()
+
+	progressBar(maxProg, progChan)
 
 	fmt.Println("Finished receiving file", fileName)
 }
