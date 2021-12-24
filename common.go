@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 const (
 	BufferSize        = 8 * 1024
@@ -19,14 +23,8 @@ func progressBar(max int, progress chan int) {
 	}
 	fmt.Print("] - 0%")
 	for prog := range progress {
-		fmt.Print("\r[")
-		for i := 0; i < prog; i++ {
-			fmt.Print("=")
-		}
-		for i := 0; i < max-prog; i++ {
-			fmt.Print("-")
-		}
-		fmt.Printf("] - %d%%", int64(float64(prog)/float64(max)*100))
+		fmt.Printf("\r["+strings.Repeat("=", prog)+strings.Repeat("-", max-prog)+"] - %d%%", int64(float64(prog)/float64(max)*100))
+		os.Stdout.Sync()
 		if prog >= max {
 			break
 		}
