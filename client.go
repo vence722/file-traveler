@@ -69,6 +69,7 @@ func fileTravelerClient(filePath string, targetHostName string) {
 			if newProgress-lastProgress >= 1 {
 				progChan <- newProgress
 			}
+			lastProgress = newProgress
 			if n == 0 {
 				close(progChan)
 				break

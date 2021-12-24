@@ -26,8 +26,9 @@ func progressBar(max int, progress chan int) {
 		fmt.Printf("\r["+strings.Repeat("=", prog)+strings.Repeat("-", max-prog)+"] - %d%%", int64(float64(prog)/float64(max)*100))
 		os.Stdout.Sync()
 		if prog >= max {
+			// ensure the last progress bar shows correct progress info
+			fmt.Println("\r[" + strings.Repeat("=", max) + "] - 100%")
 			break
 		}
 	}
-	fmt.Println()
 }

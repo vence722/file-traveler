@@ -75,6 +75,7 @@ func handleConn(conn net.Conn) {
 			if newProgress-lastProgress >= 1 {
 				progChan <- newProgress
 			}
+			lastProgress = newProgress
 			if n == 0 {
 				close(progChan)
 				break
