@@ -70,7 +70,7 @@ func fileTravelerClient(filePath string, targetHostName string) {
 				progChan <- newProgress
 			}
 			lastProgress = newProgress
-			if n == 0 {
+			if err == io.EOF {
 				close(progChan)
 				break
 			}

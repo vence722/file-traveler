@@ -34,28 +34,42 @@ func fileTravelerServer() {
 }
 
 func handleConn(conn net.Conn) {
-	bufHeader := make([]byte, unsafe.Sizeof(FileHeader{}))
-	_, err := conn.Read(bufHeader)
-	if err != nil {
-		fmt.Println("Read file header error, error:", err.Error())
-		return
+	var bufHeader []byte
+	buf := make([]byte, 1)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("Read file header error, error:", err.Error())
+			return
+		}
+		bufHeader = append(bufHeader, buf[:n]...)
+		if len(bufHeader) == int(unsafe.Sizeof(FileHeader{})) {
+			break
+		}
 	}
 	header := (*FileHeader)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&bufHeader)).Data))
 
-	bufFileName := make([]byte, header.FileNameLength)
-	_, err = conn.Read(bufFileName)
-	if err != nil {
-		fmt.Println("Read file name error, error:", err.Error())
-		return
+	var bufFileName []byte
+	buf = make([]byte, 1)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("Read file name error, error:", err.Error())
+			return
+		}
+		bufFileName = append(bufFileName, buf[:n]...)
+		if len(bufFileName) == int(header.FileNameLength) {
+			break
+		}
 	}
 	fileName := string(bufFileName)
-	fmt.Println("Receiving new file, file name:", fileName)
 
-	targetFile, err := os.Create("./" + fileName)
+	targetFile, err := os.Create(fileName)
 	if err != nil {
 		fmt.Println("Create target file error, error:", err.Error())
 		return
 	}
+	defer targetFile.Close()
 
 	progChan := make(chan int)
 	maxProg := ProgressBarLength
@@ -76,7 +90,7 @@ func handleConn(conn net.Conn) {
 				progChan <- newProgress
 			}
 			lastProgress = newProgress
-			if n == 0 {
+			if err == io.EOF {
 				close(progChan)
 				break
 			}
