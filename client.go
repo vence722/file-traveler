@@ -21,7 +21,6 @@ func fileTravelerClient(filePath string, targetHostName string) {
 		fmt.Println("Failed to open file", filePath, "error:", err.Error())
 		os.Exit(1)
 	}
-	defer f.Close()
 
 	fileStat, err := os.Stat(filePath)
 	if err != nil {
@@ -52,37 +51,38 @@ func fileTravelerClient(filePath string, targetHostName string) {
 	}
 
 	progChan := make(chan int)
+	syncChan := make(chan bool)
 	maxProg := ProgressBarLength
 
 	go func() {
-		buf := make([]byte, BufferSize)
-		currBytes := 0
-		lastProgress := 0
-		for {
-			n, err := f.Read(buf)
-			if err != nil && err != io.EOF {
-				fmt.Println("Failed to read file", filePath, "error:", err.Error())
-				os.Exit(1)
-			}
-			currBytes += n
-			newProgress := int(float64(currBytes) / float64(fileLength) * float64(maxProg))
-			if newProgress-lastProgress >= 1 {
-				progChan <- newProgress
-			}
-			lastProgress = newProgress
-			if err == io.EOF {
-				close(progChan)
-				break
-			}
-			_, err = conn.Write(buf[:n])
-			if err != nil && err != io.EOF {
-				fmt.Println("Failed to write data to target", targetHostName, "error:", err.Error())
-				os.Exit(1)
-			}
-		}
+		progressBar(maxProg, progChan)
+		fmt.Println("File", filePath, "is sent successfully!")
+		syncChan <- true
 	}()
 
-	progressBar(maxProg, progChan)
-
-	fmt.Println("File", filePath, "is sent successfully!")
+	buf := make([]byte, BufferSize)
+	currBytes := 0
+	lastProgress := 0
+	for {
+		n, err := f.Read(buf)
+		if err != nil && err != io.EOF {
+			fmt.Println("Failed to read file", filePath, "error:", err.Error())
+			os.Exit(1)
+		}
+		currBytes += n
+		newProgress := int(float64(currBytes) / float64(fileLength) * float64(maxProg))
+		if newProgress-lastProgress >= 1 {
+			progChan <- newProgress
+		}
+		lastProgress = newProgress
+		if err == io.EOF {
+			break
+		}
+		_, err = conn.Write(buf[:n])
+		if err != nil && err != io.EOF {
+			fmt.Println("Failed to write data to target", targetHostName, "error:", err.Error())
+			os.Exit(1)
+		}
+	}
+	<-syncChan
 }
